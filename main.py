@@ -193,37 +193,79 @@ def get_runner_pos_multi(waktu, waktu_putaran, R_lajur):
         theta = math.pi/2 - (arc / R_lajur)
         return x_off + R_lajur * math.cos(theta), R_lajur * math.sin(theta)
 
-def draw_realistic_runner(waktu, anim_speed_input, color_shirt, color_shorts):
+def draw_realistic_runner(waktu, anim_speed_input, color_shirt, color_shorts, is_shadow=False, shadow_alpha=0.7):
     phase = waktu * anim_speed_input
     glScalef(0.6, 0.6, 0.6)
+    
+    def set_color(c):
+        if is_shadow:
+            glColor4f(0.1, 0.15, 0.1, shadow_alpha)
+        else:
+            glColor3fv(c)
+            
     color_skin = [0.9, 0.7, 0.5]
     swing_ang = math.sin(phase) * 35.0 
     leg_swing_ang = math.sin(phase) * 30.0 
     
+    glTranslatef(0.0, 0.3, 0.0) # Mengangkat pelari agar tidak tenggelam
+    
     # --- Kepala ---
-    glColor3fv(color_skin)
+    set_color(color_skin)
     glPushMatrix()
-    glTranslatef(0.0, 3.1, 0.0); glScalef(0.18, 0.18, 0.18); draw_box(1.0, 1.0, 1.0); glPopMatrix()
+    glTranslatef(0.0, 3.1, 0.0); glScalef(0.22, 0.25, 0.22); draw_box(1.0, 1.0, 1.0); glPopMatrix()
     # --- Torso ---
-    glColor3fv(color_shirt)
-    glPushMatrix(); glTranslatef(0.0, 2.3, 0.0); glScalef(0.25, 0.7, 0.15); draw_box(1.0, 1.0, 1.0); glPopMatrix()
+    set_color(color_shirt)
+    glPushMatrix(); glTranslatef(0.0, 2.2, 0.0); glScalef(0.3, 0.6, 0.18); draw_box(1.0, 1.0, 1.0); glPopMatrix()
     # --- Pinggul ---
-    glColor3fv(color_shorts)
-    glPushMatrix(); glTranslatef(0.0, 1.5, 0.0); glScalef(0.2, 0.2, 0.15); draw_box(1.0, 1.0, 1.0); glPopMatrix()
+    set_color(color_shorts)
+    glPushMatrix(); glTranslatef(0.0, 1.4, 0.0); glScalef(0.3, 0.2, 0.18); draw_box(1.0, 1.0, 1.0); glPopMatrix()
     
     # --- Lengan & Kaki (Simpel) ---
     def draw_limb(angle, c1, c2, x_off, y_pos, is_leg):
         glPushMatrix()
         glTranslatef(x_off, y_pos, 0.0); glRotatef(angle, 1.0, 0.0, 0.0)
-        glColor3fv(c1); glPushMatrix(); glScalef(0.1, 0.4, 0.1); draw_box(1.0, 1.0, 1.0); glPopMatrix()
-        glTranslatef(0.0, -0.6, 0.0); glRotatef(abs(angle), 1.0 if is_leg else -1.0, 0.0, 0.0)
-        glColor3fv(c2); glPushMatrix(); glScalef(0.08, 0.4, 0.08); draw_box(1.0, 1.0, 1.0); glPopMatrix()
+        
+        # Upper limb
+        set_color(c1); glPushMatrix()
+        glTranslatef(0.0, -0.3, 0.0)
+        glScalef(0.12, 0.35, 0.12); draw_box(1.0, 1.0, 1.0)
+        glPopMatrix()
+        
+        # Lower limb
+        glTranslatef(0.0, -0.65, 0.0); glRotatef(abs(angle), 1.0 if is_leg else -1.0, 0.0, 0.0)
+        set_color(c2); glPushMatrix()
+        glTranslatef(0.0, -0.3, 0.0)
+        glScalef(0.1, 0.35, 0.1); draw_box(1.0, 1.0, 1.0)
+        glPopMatrix()
+        
+        # Extremity (Shoe / Hand)
+        if is_leg:
+            glTranslatef(0.0, -0.65, 0.1)
+            set_color([0.2, 0.2, 0.2]) # Sepatu
+            glPushMatrix(); glScalef(0.12, 0.1, 0.2); draw_box(1.0, 1.0, 1.0); glPopMatrix()
+        else:
+            glTranslatef(0.0, -0.65, 0.0)
+            set_color(color_skin) # Tangan
+            glPushMatrix(); glScalef(0.1, 0.1, 0.1); draw_box(1.0, 1.0, 1.0); glPopMatrix()
+            
         glPopMatrix()
 
-    draw_limb(swing_ang, color_shirt, color_skin, -0.35, 2.9, False) # Lengan Kiri
-    draw_limb(-swing_ang, color_shirt, color_skin, 0.35, 2.9, False)  # Lengan Kanan
-    draw_limb(-leg_swing_ang, color_shorts, color_skin, -0.15, 1.4, True) # Kaki Kiri
-    draw_limb(leg_swing_ang, color_shorts, color_skin, 0.15, 1.4, True)   # Kaki Kanan
+    draw_limb(swing_ang, color_shirt, color_skin, -0.4, 2.6, False) # Lengan Kiri
+    draw_limb(-swing_ang, color_shirt, color_skin, 0.4, 2.6, False)  # Lengan Kanan
+    draw_limb(-leg_swing_ang, color_shorts, color_skin, -0.18, 1.3, True) # Kaki Kiri
+    draw_limb(leg_swing_ang, color_shorts, color_skin, 0.18, 1.3, True)   # Kaki Kanan
+
+def apply_shadow_matrix(Lx, Ly, Lz):
+    P = [0.0, 1.0, 0.0, -0.02] # Y ground plane
+    L = [Lx, Ly, Lz, 1.0]
+    dot = P[0]*L[0] + P[1]*L[1] + P[2]*L[2] + P[3]*L[3]
+    mat = [
+        dot - P[0]*L[0], -P[0]*L[1], -P[0]*L[2], -P[0]*L[3],
+        -P[1]*L[0], dot - P[1]*L[1], -P[1]*L[2], -P[1]*L[3],
+        -P[2]*L[0], -P[2]*L[1], dot - P[2]*L[2], -P[2]*L[3],
+        -P[3]*L[0], -P[3]*L[1], -P[3]*L[2], dot - P[3]*L[3]
+    ]
+    glMultMatrixf(mat)
 
 # --- KOORDINAT LINGKUNGAN ---
 tree_positions = [
@@ -242,23 +284,34 @@ def init_lighting():
     for l in lights:
         glEnable(l)
         glLightfv(l, GL_DIFFUSE, [0.9, 0.8, 0.5, 1.0])
-        glLightf(l, GL_SPOT_CUTOFF, 40.0)      
-        glLightf(l, GL_SPOT_EXPONENT, 10.0)    
+        glLightfv(l, GL_SPECULAR, [0.3, 0.3, 0.3, 1.0])
+        glLightf(l, GL_SPOT_CUTOFF, 80.0)      
+        glLightf(l, GL_SPOT_EXPONENT, 1.5)    
         glLightf(l, GL_LINEAR_ATTENUATION, 0.01)
+        
+    glMaterialfv(GL_FRONT, GL_SPECULAR, [0.2, 0.2, 0.2, 1.0])
+    glMaterialf(GL_FRONT, GL_SHININESS, 8.0)
+
+def framebuffer_size_callback(window, width, height):
+    if height == 0: height = 1
+    glViewport(0, 0, width, height)
 
 def main():
     if not glfw.init(): return
     window = glfw.create_window(800, 600, "Stadion UAS Grafkom - Rumput Penuh", None, None)
     if not window: glfw.terminate(); return
     glfw.make_context_current(window)
+    glfw.set_framebuffer_size_callback(window, framebuffer_size_callback)
     glEnable(GL_DEPTH_TEST) 
     glClearColor(0.25, 0.35, 0.5, 1.0) 
     init_lighting()
     gl_lights = [GL_LIGHT0, GL_LIGHT1, GL_LIGHT2, GL_LIGHT3]
 
     while not glfw.window_should_close(window):
-        glfw.poll_events(); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glMatrixMode(GL_PROJECTION); glLoadIdentity(); gluPerspective(45, 800/600, 0.1, 100.0)
+        glfw.poll_events(); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        width, height = glfw.get_framebuffer_size(window)
+        if height == 0: height = 1
+        glMatrixMode(GL_PROJECTION); glLoadIdentity(); gluPerspective(45, width/height, 0.1, 100.0)
         glMatrixMode(GL_MODELVIEW); glLoadIdentity()
         waktu = glfw.get_time()
         
@@ -278,12 +331,53 @@ def main():
         # Gambar 2 Pelari
         def run(w_in, t_put, R, c1, c2, off):
             x, z = get_runner_pos_multi(w_in + off, t_put, R)
-            glPushMatrix(); glTranslatef(x, 0.0, z)
-            glRotatef(math.degrees(math.atan2(get_runner_pos_multi(w_in+off+0.1, t_put, R)[0]-x, get_runner_pos_multi(w_in+off+0.1, t_put, R)[1]-z)), 0.0, 1.0, 0.0)
-            draw_realistic_runner(waktu, 15.0, c1, c2); glPopMatrix()
+            next_x, next_z = get_runner_pos_multi(w_in + off + 0.1, t_put, R)
+            rot_angle = math.degrees(math.atan2(next_x - x, next_z - z))
+            
+            # --- Gambar Shadow dari Semua Lampu (Smooth Fade & No Overlap) ---
+            glDisable(GL_LIGHTING)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glDepthMask(GL_FALSE) # Hindari z-fighting shadow
+            
+            glEnable(GL_STENCIL_TEST)
+            
+            for pos in lamp_positions:
+                dist = math.sqrt((pos[0] - x)**2 + (pos[1] - z)**2)
+                max_dist = 18.0
+                
+                if dist < max_dist:
+                    # Menghitung kepekatan shadow berdasarkan jarak
+                    alpha = 0.65 * (1.0 - (dist / max_dist))
+                    Lx, Lz = pos[0], pos[1]
+                    Ly = 6.0
+                    
+                    # Bersihkan area stencil untuk bayangan lampu ini
+                    glClear(GL_STENCIL_BUFFER_BIT)
+                    glStencilFunc(GL_EQUAL, 0, 0xFF)
+                    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR)
+                    
+                    glPushMatrix()
+                    apply_shadow_matrix(Lx, Ly, Lz)
+                    glTranslatef(x, 0.0, z)
+                    glRotatef(rot_angle, 0.0, 1.0, 0.0)
+                    draw_realistic_runner(waktu, 15.0, c1, c2, is_shadow=True, shadow_alpha=alpha)
+                    glPopMatrix()
+            
+            glDisable(GL_STENCIL_TEST)
+            glDepthMask(GL_TRUE)
+            glDisable(GL_BLEND)
+            glEnable(GL_LIGHTING)
 
-        run(waktu, 12.0, 4.8, [0.2, 0.4, 0.8], [0.8, 0.2, 0.2], 0) # Pelari 1
-        run(waktu, 14.0, 6.4, [0.9, 0.8, 0.2], [0.2, 0.3, 0.7], 6.0) # Pelari 2
+            # --- Gambar Pelari ---
+            glPushMatrix()
+            glTranslatef(x, 0.0, z)
+            glRotatef(rot_angle, 0.0, 1.0, 0.0)
+            draw_realistic_runner(waktu, 15.0, c1, c2)
+            glPopMatrix()
+
+        run(waktu, 12.0, 4.4, [0.2, 0.4, 0.8], [0.8, 0.2, 0.2], 0) # Pelari 1 (Jalur 1)
+        run(waktu, 14.0, 6.0, [0.9, 0.8, 0.2], [0.2, 0.3, 0.7], 6.0) # Pelari 2 (Jalur 3)
 
         glfw.swap_buffers(window)
     glfw.terminate()
