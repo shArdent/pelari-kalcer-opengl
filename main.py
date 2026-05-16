@@ -40,11 +40,30 @@ def main():
     glfw.set_framebuffer_size_callback(window, framebuffer_size_callback)
     
     cam_manager = CameraManager()
-    glfw.set_key_callback(window, cam_manager.key_callback)
+    
+    is_paused = False
+    
+    def key_callback_wrapper(win, key, scancode, action, mods):
+        nonlocal is_paused
+        if key == glfw.KEY_SPACE and action == glfw.PRESS:
+            is_paused = not is_paused
+        cam_manager.key_callback(win, key, scancode, action, mods)
+        
+    glfw.set_key_callback(window, key_callback_wrapper)
     glfw.set_cursor_pos_callback(window, cam_manager.mouse_callback)
     
+    last_time = glfw.get_time()
+    waktu = 0.0
+    
     while not glfw.window_should_close(window):
-        cam_manager.update_time(glfw.get_time())
+        current_time = glfw.get_time()
+        delta_time = current_time - last_time
+        last_time = current_time
+        
+        if not is_paused:
+            waktu += delta_time
+            
+        cam_manager.update_time(current_time)
         cam_manager.process_input(window)
 
         glfw.poll_events()
@@ -56,7 +75,6 @@ def main():
         
         projection = glm.perspective(glm.radians(45.0), width / height, 0.1, 100.0)
         
-        waktu = glfw.get_time()
         view, cam_pos = cam_manager.get_view_matrix_and_pos(waktu)
         
         glUniform3f(glGetUniformLocation(shader, "viewPos"), cam_pos.x, cam_pos.y, cam_pos.z)
